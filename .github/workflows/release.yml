@@ -6,7 +6,7 @@ on:
       - v*
 
 env:
-  REGISTRY_IMAGE: ghcr.io/h3rmt/alpine-tor
+  REGISTRY_IMAGE: ghcr.io/h3rmt/tor-exporter
 
 permissions:
   contents: read
