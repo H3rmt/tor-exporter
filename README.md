@@ -1,5 +1,5 @@
 # prometheus-tor_exporter
-Prometheus exporter for the TOR daemon.
+Prometheus exporter for the TOR daemon. (Fork with container)
 
 ![prometheus-tor-exporter](https://user-images.githubusercontent.com/3966931/27349994-5cec464c-55f9-11e7-805a-2aea50413f2a.png)
 
