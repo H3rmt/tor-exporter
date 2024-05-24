@@ -41,6 +41,7 @@ class StemCollector:
                           "{}.".format(PASSWORD_ENV))
             sys.exit(1)
 
+    # https://github.com/torproject/torspec/blob/main/control-spec.txt
     def collect(self):
         if not self.tor.is_authenticated():
             logging.info("reconnecting...")
