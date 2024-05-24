@@ -47,10 +47,13 @@ class StemCollector:
             logging.info("reconnecting...")
             self.reconnect()
 
-        address_metric = Metric("tor_address", "Ipv4 and Ipv6 Addresses of Tor", labels=["address", "type"])
-        address_metric.add_metric([self.tor.get_info("address/v4"), "Ipv4"], 1)
-        address_metric.add_metric([self.tor.get_info("address/v6"), "Ipv6"], 1)
-        yield address_metric
+        try:
+            address_metric = Metric("tor_address", "Ipv4 and Ipv6 Addresses of Tor", labels=["address", "type"])
+            address_metric.add_metric([self.tor.get_info("address/v4"), "Ipv4"], 1)
+            address_metric.add_metric([self.tor.get_info("address/v6"), "Ipv6"], 1)
+            yield address_metric
+        except OperationFailed as e:
+            logging.debug("No Addresses found: %s", e)
 
         yield Metric("tor_descriptor_limit", "Upper bound on the file descriptor limit",
                      value=int(self.tor.get_info("process/descriptor-limit")))
