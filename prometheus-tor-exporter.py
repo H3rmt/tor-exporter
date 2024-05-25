@@ -58,8 +58,9 @@ class StemCollector:
         yield Metric("tor_descriptor_limit", "Upper bound on the file descriptor limit",
                      value=int(self.tor.get_info("process/descriptor-limit")))
         yield Metric("tor_uptime", "Tor daemon uptime in seconds", value=int(self.tor.get_info("uptime")))
-        yield Metric("tor_written_bytes", "Tor written data counter", value=int(self.tor.get_info("traffic/written")))
-        yield Metric("tor_read_bytes", "Tor received data counter", value=int(self.tor.get_info("traffic/read")))
+        yield Metric("tor_written_bytes_total", "Tor written data counter",
+                     value=int(self.tor.get_info("traffic/written")))
+        yield Metric("tor_read_bytes_total", "Tor received data counter", value=int(self.tor.get_info("traffic/read")))
 
         version = Metric("tor_version", "Tor version as a label", labels=["version"])
         version.add_metric([str(torctl.get_version())], 1)
@@ -148,8 +149,8 @@ class StemCollector:
 
         regex = re.compile(".*CountrySummary=([a-z0-9=,]+)")
         country_summary = regex.match(self.tor.get_info("status/clients-seen"))
-        logging.debug("Countries: %s", country_summary.group(1))
         if country_summary is not None:
+            logging.debug("Countries: %s", country_summary.group(1))
             country_summary_split = country_summary.group(1).split(",")
             bridge_clients_seen = Metric("tor_bridge_clients_seen",
                                          "Tor bridge clients per country. Reset every 24 hours and only increased by "
