@@ -9,10 +9,54 @@ from prometheus_client.core import GaugeMetricFamily as Metric, REGISTRY
 from retrying import retry
 from stem import ProtocolError, OperationFailed, DescriptorUnavailable, ControllerError
 from stem.connection import IncorrectPassword
-from stem.control import Controller
-from stem.util.connection import get_connections
+from stem.control import Controller, Listener
+from stem.util.connection import get_connections, Connection
 
 PASSWORD_ENV = "PROM_TOR_EXPORTER_PASSWORD"
+
+
+def handle_connections(connections: list[Connection], tor: Controller):
+    control, dns, socks, dir, orp, pt = [[], []], [[], []], [[], []], [[], []], [[], []], [[], []]
+    control_ports = tor.get_ports(Listener.CONTROL)
+    dns_ports = tor.get_ports(Listener.DNS)
+    socks_ports = tor.get_ports(Listener.SOCKS)
+    dir_ports = tor.get_ports(Listener.DIR)
+    orp_ports = tor.get_ports(Listener.OR)
+    pt_ports = tor.get_ports(Listener.EXTOR)
+    for connection in connections:
+        if connection.local_port in control_ports:
+            control[connection.is_ipv6].append(connection)
+        elif connection.local_port in dns_ports:
+            dns[connection.is_ipv6].append(connection)
+        elif connection.local_port in socks_ports:
+            socks[connection.is_ipv6].append(connection)
+        elif connection.local_port in dir_ports:
+            dir[connection.is_ipv6].append(connection)
+        elif connection.local_port in orp_ports:
+            orp[connection.is_ipv6].append(connection)
+        elif connection.local_port in pt_ports:
+            pt_ports[connection.is_ipv6].append(connection)
+
+    logging.debug("ipv4: control: %s, dns: %s, socks: %s, dir: %s, orp: %s, pt: %s", len(control[0]), len(dns[0]),
+                  len(socks[0]), len(dir[0]), len(orp[0]), len(pt[0]))
+    logging.debug("ipv6: control: %s, dns: %s, socks: %s, dir: %s, orp: %s, pt: %s", len(control[1]), len(dns[1]),
+                  len(socks[1]), len(dir[1]), len(orp[1]), len(pt[1]))
+
+    tor_connection_count = Metric("tor_connection_count", "Amount of connections the Tor daemon has open",
+                                  labels=["ip", "type"])
+    tor_connection_count.add_metric(["ipv4", "CONTROL"], len(control[0]))
+    tor_connection_count.add_metric(["ipv6", "CONTROL"], len(control[1]))
+    tor_connection_count.add_metric(["ipv4", "DNS"], len(dns[0]))
+    tor_connection_count.add_metric(["ipv6", "DNS"], len(dns[1]))
+    tor_connection_count.add_metric(["ipv4", "SOCKS"], len(socks[0]))
+    tor_connection_count.add_metric(["ipv6", "SOCKS"], len(socks[1]))
+    tor_connection_count.add_metric(["ipv4", "DIR"], len(dir[0]))
+    tor_connection_count.add_metric(["ipv6", "DIR"], len(dir[1]))
+    tor_connection_count.add_metric(["ipv4", "OR"], len(orp[0]))
+    tor_connection_count.add_metric(["ipv6", "OR"], len(orp[1]))
+    tor_connection_count.add_metric(["ipv4", "EXTOR"], len(pt[0]))
+    tor_connection_count.add_metric(["ipv6", "EXTOR"], len(pt[1]))
+    return tor_connection_count
 
 
 class StemCollector:
@@ -115,15 +159,11 @@ class StemCollector:
         # Connection counting
         # This won't work/will return wrong results if we are not running on
         # the same box as the Tor daemon is.
-        # DisableDebuggerAttachment has to be set to 0
-        # TODO: Count individual OUT/DIR/Control connections, see arm sources
-        # for reference
         try:
             tor_pid = self.tor.get_pid()
             logging.debug("Tor Pid: %s", tor_pid)
             connections = get_connections(process_pid=tor_pid)
-            yield Metric("tor_connection_count", "Amount of connections the Tor daemon has open",
-                         value=len(connections))
+            yield handle_connections(connections, self.tor)
         except (OSError, IOError) as e:
             logging.debug("Pid not found: %s", e)
             pass  # This happens if the PID does not exist (on another machine).
@@ -156,7 +196,10 @@ class StemCollector:
                                          "Tor bridge clients per country. Reset every 24 hours and only increased by "
                                          "multiples of 8.", labels=["country"])
             for country in country_summary_split:
-                bridge_clients_seen.add_metric(country[:2], country[3:])
+                if len(country) > 3:
+                    bridge_clients_seen.add_metric(country[:2], country[3:])
+                else:
+                    logging.debug("Country: '%s' invalid", country)
             yield bridge_clients_seen
 
         try:
