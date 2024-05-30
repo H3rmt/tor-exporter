@@ -35,7 +35,7 @@ def handle_connections(connections: list[Connection], tor: Controller):
         elif connection.local_port in orp_ports:
             orp[connection.is_ipv6].append(connection)
         elif connection.local_port in pt_ports:
-            pt_ports[connection.is_ipv6].append(connection)
+            pt[connection.is_ipv6].append(connection)
 
     logging.debug("ipv4: control: %s, dns: %s, socks: %s, dir: %s, orp: %s, pt: %s", len(control[0]), len(dns[0]),
                   len(socks[0]), len(dir[0]), len(orp[0]), len(pt[0]))
