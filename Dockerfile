@@ -1,4 +1,4 @@
-FROM python:alpine@sha256:b4d299311845147e7e47c970566906caf8378a1f04e5d3de65b5f2e834f8e3bf
+FROM python:alpine@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01
 RUN pip install stem prometheus_client retrying
 
 COPY ./prometheus-tor-exporter.py /prometheus-tor-exporter.py
